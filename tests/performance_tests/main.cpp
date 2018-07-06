@@ -59,25 +59,6 @@
 
 namespace po = boost::program_options;
 
-std::string glob_to_regex(const std::string &val)
-{
-  std::string newval;
-
-  bool escape = false;
-  for (char c: val)
-  {
-    if (c == '*')
-      newval += escape ? "*" : ".*";
-    else if (c == '?')
-      newval += escape ? "?" : ".";
-    else if (c == '\\')
-      newval += '\\', escape = !escape;
-    else
-      newval += c;
-  }
-  return newval;
-}
-
 int main(int argc, char** argv)
 {
   TRY_ENTRY();
