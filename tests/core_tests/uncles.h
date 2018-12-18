@@ -36,8 +36,11 @@ struct gen_uncles_base : public test_chain_unit_base
   gen_uncles_base() : m_invalid_block_index(0)
   {
     REGISTER_CALLBACK_METHOD(gen_uncles_base, mark_invalid_block);
+    REGISTER_CALLBACK_METHOD(gen_uncles_base, check_uncle_reorg);
+    REGISTER_CALLBACK_METHOD(gen_uncles_base, check_uncle_reorg_alt_nephews);
+    REGISTER_CALLBACK_METHOD(gen_uncles_base, check_uncle_reorg_alt_nephews_as_uncle);
   }
-  bool generate_with(std::vector<test_event_entry> &events, const std::function<bool(std::vector<test_event_entry> &events, const cryptonote::block &top_bl, const cryptonote::block &alt_bl, const cryptonote::account_base &original_miner, test_generator &generator)> &add_blocks, const uint64_t &difficulty = 1) const;
+  bool generate_with(std::vector<test_event_entry> &events, const std::function<bool(std::vector<test_event_entry> &events, const cryptonote::block &top_bl, const cryptonote::block &alt_bl, const cryptonote::account_base &original_miner, const cryptonote::account_base &uncle_miner, test_generator &generator)> &add_blocks, const uint64_t &difficulty = 1) const;
 
   bool check_block_verification_context(const cryptonote::block_verification_context& bvc, size_t event_idx, const cryptonote::block& /*block*/)
   {
@@ -52,6 +55,11 @@ struct gen_uncles_base : public test_chain_unit_base
     m_invalid_block_index = ev_index + 1;
     return true;
   }
+
+  bool check_uncle_reorg(cryptonote::core& c, size_t ev_index, const std::vector<test_event_entry>& events);
+  bool check_uncle_reorg_alt_nephews(cryptonote::core& c, size_t ev_index, const std::vector<test_event_entry>& events);
+  bool check_uncle_reorg_alt_nephews_as_uncle(cryptonote::core& c, size_t ev_index, const std::vector<test_event_entry>& events);
+
 private:
   size_t m_invalid_block_index;
 };
