@@ -1179,33 +1179,28 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
     }
     else if (miner_tx && m_refresh_type == RefreshOptimizeCoinbase)
     {
-      check_acc_out_precomp_once(tx.vout[0], derivation, additional_derivations, 0, tx_scan_info[0], output_found[0]);
-      THROW_WALLET_EXCEPTION_IF(tx_scan_info[0].error, error::acc_outs_lookup_error, tx, tx_pub_key, m_account.get_keys());
-
-      // this assumes that the miner tx pays a single address
-      if (tx_scan_info[0].received)
+      for (size_t i = 0; i < tx.vout.size(); ++i)
       {
-        // process the other outs from that tx
-        // the first one was already checked
-        for (size_t i = 1; i < tx.vout.size(); ++i)
+        crypto::public_key pubkey_i = get_tx_pub_key_from_extra(tx, i);
+        crypto::key_derivation deriv_i;
+        if (!hwdev.generate_key_derivation(pubkey_i, keys.m_view_secret_key, deriv_i))
         {
-          tpool.submit(&waiter, boost::bind(&wallet2::check_acc_out_precomp_once, this, std::cref(tx.vout[i]), std::cref(derivation), std::cref(additional_derivations), i,
-          std::ref(tx_scan_info[i]), std::ref(output_found[i])));
+          MWARNING("Failed to generate key derivation from tx pubkey, skipping");
+          continue;
         }
-        waiter.wait();
-        // then scan all outputs from 0
-        hwdev_lock.lock();
-        hwdev.set_mode(hw::device::NONE);
-        for (size_t i = 0; i < tx.vout.size(); ++i)
+        check_acc_out_precomp_once(tx.vout[i], deriv_i, additional_derivations, i, tx_scan_info[i], output_found[i]);
+        THROW_WALLET_EXCEPTION_IF(tx_scan_info[i].error, error::acc_outs_lookup_error, tx, pubkey_i, m_account.get_keys());
+
+        if (tx_scan_info[i].received)
         {
-          THROW_WALLET_EXCEPTION_IF(tx_scan_info[i].error, error::acc_outs_lookup_error, tx, tx_pub_key, m_account.get_keys());
-          if (tx_scan_info[i].received)
-          {
-            hwdev.generate_key_derivation(tx_pub_key,  keys.m_view_secret_key, tx_scan_info[i].received->derivation);
-            scan_output(tx, tx_pub_key, i, tx_scan_info[i], num_vouts_received, tx_money_got_in_outs, outs);
-          }
+          waiter.wait();
+          hwdev_lock.lock();
+          hwdev.set_mode(hw::device::NONE);
+          THROW_WALLET_EXCEPTION_IF(tx_scan_info[i].error, error::acc_outs_lookup_error, tx, pubkey_i, m_account.get_keys());
+          hwdev.generate_key_derivation(pubkey_i,  keys.m_view_secret_key, tx_scan_info[i].received->derivation);
+          scan_output(tx, pubkey_i, i, tx_scan_info[i], num_vouts_received, tx_money_got_in_outs, outs);
+          hwdev_lock.unlock();
         }
-        hwdev_lock.unlock();
       }
     }
     else if (tx.vout.size() > 1 && tools::threadpool::getInstance().get_max_concurrency() > 1)
