@@ -1519,13 +1519,13 @@ bool Blockchain::create_block_template(block& b, std::string miner_address, diff
   b.major_version = m_hardfork->get_current_version();
   b.minor_version = m_hardfork->get_ideal_version();
   b.prev_id = get_tail_id();
-  b.timestamp = time(NULL);
+  b.timestamp = m_db->get_top_block_timestamp() > get_adjusted_time() / 2 ? m_db->get_top_block_timestamp() + 60 : get_adjusted_time() + 120;
   b.uncle = null_hash;
 
   uint64_t median_timestamp;
-  if (!check_median_block_timestamp(b, median_timestamp)) {
-    b.timestamp = std::max(median_timestamp, m_db->get_top_block_timestamp() - CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT_V6);
-  }
+  //if (!check_median_block_timestamp(b, median_timestamp)) {
+  //  b.timestamp = std::max(median_timestamp, m_db->get_top_block_timestamp() - CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT_V6);
+  //}
 
   diffic = get_difficulty_for_next_block();
   CHECK_AND_ASSERT_MES(diffic, false, "difficulty overhead.");
@@ -1797,13 +1797,13 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
       complete_timestamps_vector(m_db->get_block_height(b.prev_id), timestamps);
     }
 
-    MDEBUG("Verifying block timestamp is within the acceptable range");
-    if(!check_block_timestamp(timestamps, b))
-    {
-      MERROR_VER("Block with id: " << id << std::endl << " for alternative chain, has invalid timestamp: " << b.timestamp);
-      bvc.m_verifivation_failed = true;
-      return false;
-    }
+    //MDEBUG("Verifying block timestamp is within the acceptable range");
+    //if(!check_block_timestamp(timestamps, b))
+    //{
+    //  MERROR_VER("Block with id: " << id << std::endl << " for alternative chain, has invalid timestamp: " << b.timestamp);
+    //  bvc.m_verifivation_failed = true;
+    //  return false;
+    //}
 
     // FIXME: consider moving away from block_extended_info at some point
     block_extended_info bei = boost::value_initialized<block_extended_info>();
@@ -3605,8 +3605,8 @@ bool Blockchain::check_block_timestamp(const block& b) const
 
   if(b.timestamp > get_adjusted_time() + cryptonote_block_future_time_limit)
   {
-    MERROR_VER("Timestamp of block with id: " << get_block_hash(b) << ", " << b.timestamp << ", bigger than adjusted time + " << (get_current_hard_fork_version() < 2 ? "2 hours" : "30 minutes"));
-    return false;
+    //MERROR_VER("Timestamp of block with id: " << get_block_hash(b) << ", " << b.timestamp << ", bigger than adjusted time + " << (get_current_hard_fork_version() < 2 ? "2 hours" : "30 minutes"));
+    //return false;
   }
 
   uint64_t median_ts;
