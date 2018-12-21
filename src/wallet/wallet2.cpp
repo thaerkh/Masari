@@ -1110,6 +1110,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
   if (!miner_tx && !pool)
     process_unconfirmed(txid, tx, height);
   std::vector<size_t> outs;
+  std::unordered_map<size_t, size_t> outs_indices;
   std::unordered_map<cryptonote::subaddress_index, uint64_t> tx_money_got_in_outs;  // per receiving subaddress index
   crypto::public_key tx_pub_key = null_pkey;
 
@@ -1200,6 +1201,9 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
           hwdev.generate_key_derivation(pubkey_i,  keys.m_view_secret_key, tx_scan_info[i].received->derivation);
           scan_output(tx, pubkey_i, i, tx_scan_info[i], num_vouts_received, tx_money_got_in_outs, outs);
           hwdev_lock.unlock();
+          outs_indices.insert(std::pair<size_t,size_t>(i, i));
+        } else {
+          outs_indices.insert(std::pair<size_t,size_t>(i, pk_index - 1));
         }
       }
     }
@@ -1221,6 +1225,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
         {
           hwdev.generate_key_derivation(tx_pub_key,  keys.m_view_secret_key, tx_scan_info[i].received->derivation);
           scan_output(tx, tx_pub_key, i, tx_scan_info[i], num_vouts_received, tx_money_got_in_outs, outs);
+          outs_indices.insert(std::pair<size_t,size_t>(i, pk_index - 1));
         }
       }
       hwdev_lock.unlock();
@@ -1237,6 +1242,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
           hwdev.set_mode(hw::device::NONE);
           hwdev.generate_key_derivation(tx_pub_key,  keys.m_view_secret_key, tx_scan_info[i].received->derivation);
           scan_output(tx, tx_pub_key, i, tx_scan_info[i], num_vouts_received, tx_money_got_in_outs, outs);
+          outs_indices.insert(std::pair<size_t,size_t>(i, pk_index - 1));
           hwdev_lock.unlock();
         }
       }
@@ -1279,7 +1285,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
             td.m_key_image_known = !m_watch_only && !m_multisig;
             td.m_key_image_partial = m_multisig;
             td.m_amount = amount;
-            td.m_pk_index = pk_index - 1;
+            td.m_pk_index = outs_indices.at(o);
             td.m_subaddr_index = tx_scan_info[o].received->index;
             expand_subaddresses(tx_scan_info[o].received->index);
             if (tx.vout[o].amount == 0)
@@ -1347,7 +1353,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
 	    td.m_tx = (const cryptonote::transaction_prefix&)tx;
 	    td.m_txid = txid;
             td.m_amount = amount;
-            td.m_pk_index = pk_index - 1;
+            td.m_pk_index = outs_indices.at(o);
             td.m_subaddr_index = tx_scan_info[o].received->index;
             expand_subaddresses(tx_scan_info[o].received->index);
             if (tx.vout[o].amount == 0)
