@@ -166,11 +166,6 @@ int main(int argc, char** argv)
   TEST_PERFORMANCE3(filter, verbose, test_ringct_mlsag, 1, 10, true);
   TEST_PERFORMANCE3(filter, verbose, test_ringct_mlsag, 1, 100, true);
 
-  TEST_PERFORMANCE2(filter, verbose, test_equality, memcmp32, true);
-  TEST_PERFORMANCE2(filter, verbose, test_equality, memcmp32, false);
-  TEST_PERFORMANCE2(filter, verbose, test_equality, verify32, false);
-  TEST_PERFORMANCE2(filter, verbose, test_equality, verify32, false);
-
   TEST_PERFORMANCE1(filter, verbose, test_range_proof, true);
   TEST_PERFORMANCE1(filter, verbose, test_range_proof, false);
 
