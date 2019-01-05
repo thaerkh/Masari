@@ -51,44 +51,24 @@ bool gen_bp_tx_validation_base::generate_with(std::vector<test_event_entry>& eve
   GENERATE_ACCOUNT(miner_account);
   MAKE_GENESIS_BLOCK(events, blk_0, miner_account, ts_start);
 
-  // create 12 miner accounts, and have them mine the next 12 blocks
-  cryptonote::account_base miner_accounts[12];
+  // create 13 miner accounts, and have them mine the next 13 blocks
+  cryptonote::account_base miner_accounts[13];
   const cryptonote::block *prev_block = &blk_0;
-  cryptonote::block blocks[12 + CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW];
-  for (size_t n = 0; n < 12; ++n) {
-    miner_accounts[n].generate();
-    CHECK_AND_ASSERT_MES(generator.construct_block_manually(blocks[n], *prev_block, miner_accounts[n],
-        test_generator::bf_major_ver | test_generator::bf_minor_ver | test_generator::bf_timestamp | test_generator::bf_hf_version,
-        2, 2, prev_block->timestamp + DIFFICULTY_BLOCKS_ESTIMATE_TIMESPAN * 2, // v2 has blocks twice as long
-          crypto::hash(), 0, transaction(), std::vector<crypto::hash>(), 0, 0, 2),
-        false, "Failed to generate block");
-    events.push_back(blocks[n]);
-    prev_block = blocks + n;
-    LOG_PRINT_L0("Initial miner tx " << n << ": " << obj_to_json_str(blocks[n].miner_tx));
+  cryptonote::block blocks[13];
+  for (size_t i = 0; i < 13; i++) {
+    miner_accounts[i].generate();
+    CHECK_AND_ASSERT_MES(generator.construct_block_manually(blocks[i], *prev_block, miner_accounts[i]), false, "Failed to generate block");
+    events.push_back(blocks[i]);
+    prev_block = blocks + i;
+    LOG_PRINT_L0("Initial miner tx " << i << ": " << obj_to_json_str(blocks[i].miner_tx));
   }
 
-  // rewind
-  cryptonote::block blk_r, blk_last;
-  {
-    blk_last = blocks[11];
-    for (size_t i = 0; i < CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW; ++i)
-    {
-      CHECK_AND_ASSERT_MES(generator.construct_block_manually(blocks[12+i], blk_last, miner_account,
-          test_generator::bf_major_ver | test_generator::bf_minor_ver | test_generator::bf_timestamp | test_generator::bf_hf_version,
-          2, 2, blk_last.timestamp + DIFFICULTY_BLOCKS_ESTIMATE_TIMESPAN * 2, // v2 has blocks twice as long
-          crypto::hash(), 0, transaction(), std::vector<crypto::hash>(), 0, 0, 2),
-          false, "Failed to generate block");
-      events.push_back(blocks[12+i]);
-      blk_last = blocks[12+i];
-    }
-    blk_r = blk_last;
-  }
+  REWIND_BLOCKS(events, blk_last, blocks[12], miner_account);
 
   // create 4 txes from these miners in another block, to generate some rct outputs
   std::vector<transaction> rct_txes;
   cryptonote::block blk_txes;
   std::vector<crypto::hash> starting_rct_tx_hashes;
-  static const uint64_t input_amounts_available[] = {5000000000000, 30000000000000, 100000000000, 80000000000};
   for (size_t n = 0; n < n_txes; ++n)
   {
     std::vector<tx_source_entry> sources;
@@ -96,28 +76,15 @@ bool gen_bp_tx_validation_base::generate_with(std::vector<test_event_entry>& eve
     sources.resize(1);
     tx_source_entry& src = sources.back();
 
-    const uint64_t needed_amount = input_amounts_available[n];
-    src.amount = input_amounts_available[n];
-    size_t real_index_in_tx = 0;
-    for (size_t m = 0; m <= mixin; ++m) {
-      size_t index_in_tx = 0;
-      for (size_t i = 0; i < blocks[m].miner_tx.vout.size(); ++i)
-      {
-        if (blocks[m].miner_tx.vout[i].amount == needed_amount) {
-          index_in_tx = i;
-        }
-      }
-      auto out = blocks[m].miner_tx.vout[index_in_tx];
-      CHECK_AND_ASSERT_MES(out.amount == needed_amount, false, "Expected amount " << needed_amount << " not found, is instead " << out.amount);
-      src.push_output(m, boost::get<txout_to_key>(out.target).key, src.amount);
-      if (m == n)
-        real_index_in_tx = index_in_tx;
-    }
+    src.amount = blocks[n].miner_tx.vout[0].amount;
     src.real_out_tx_key = cryptonote::get_tx_pub_key_from_extra(blocks[n].miner_tx);
     src.real_output = n;
-    src.real_output_in_tx_index = real_index_in_tx;
+    src.real_output_in_tx_index = 0;
     src.mask = rct::identity();
-    src.rct = false;
+
+    for (int m = 0; m < 13; ++m) {
+      src.push_output(m + 1, boost::get<txout_to_key>(blocks[m].miner_tx.vout[0].target).key, blocks[m].miner_tx.vout[0].amount);
+    }
 
     //fill outputs entry
     tx_destination_entry td;
@@ -191,7 +158,6 @@ bool gen_bp_tx_validation_base::generate_with(std::vector<test_event_entry>& eve
 bool gen_bp_tx_validation_base::check_bp(const cryptonote::transaction &tx, size_t tx_idx, const size_t *sizes, const char *context) const
 {
   DEFINE_TESTS_ERROR_CONTEXT(context);
-  CHECK_TEST_CONDITION(tx.version >= 2);
   CHECK_TEST_CONDITION(rct::is_rct_bulletproof(tx.rct_signatures.type));
   size_t n_sizes = 0, n_amounts = 0;
   for (size_t n = 0; n < tx_idx; ++n)
