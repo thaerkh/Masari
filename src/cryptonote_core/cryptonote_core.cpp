@@ -699,20 +699,11 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   static bool is_canonical_bulletproof_layout(const std::vector<rct::Bulletproof> &proofs)
   {
-    size_t n_amounts = rct::n_bulletproof_amounts(proofs), amounts_proved = 0;
-    size_t n = 0;
-    while (amounts_proved < n_amounts)
-    {
-      if (n >= proofs.size())
-        return false;
-      size_t batch_size = 1;
-      while (batch_size * 2 + amounts_proved <= n_amounts && batch_size * 2 <= BULLETPROOF_MAX_OUTPUTS)
-        batch_size *= 2;
-      if (rct::n_bulletproof_amounts(proofs[n]) != batch_size)
-        return false;
-      amounts_proved += batch_size;
-      ++n;
-    }
+    if (proofs.size() != 1)
+      return false;
+    const size_t sz = proofs[0].V.size();
+    if (sz == 0 || sz > BULLETPROOF_MAX_OUTPUTS)
+      return false;
     return true;
   }
   //-----------------------------------------------------------------------------------------------

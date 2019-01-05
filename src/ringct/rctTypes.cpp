@@ -253,9 +253,9 @@ namespace rct {
         static const size_t extra_bits = 4;
         static_assert((1 << extra_bits) == BULLETPROOF_MAX_OUTPUTS, "log2(BULLETPROOF_MAX_OUTPUTS) is out of date");
         CHECK_AND_ASSERT_MES(proof.L.size() <= 6 + extra_bits, 0, "Invalid bulletproof L size");
+        CHECK_AND_ASSERT_MES(proof.V.size() > 0, 0, "Empty bulletproof");
         CHECK_AND_ASSERT_MES(proof.V.size() <= (1u<<(proof.L.size()-6)), 0, "Invalid bulletproof V/L");
         CHECK_AND_ASSERT_MES(proof.V.size() * 2 > (1u<<(proof.L.size()-6)), 0, "Invalid bulletproof V/L");
-        CHECK_AND_ASSERT_MES(proof.V.size() > 0, 0, "Empty bulletproof");
         return proof.V.size();
     }
 
